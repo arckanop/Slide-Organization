@@ -18,10 +18,13 @@ final class OCRPipeline {
         let url = FileStore.shared.imageURL(slide.imageFileName)
         let slideID = slide.id
         Task {
+            defer { pendingIDs.remove(slideID) }
             let text = await Self.recognizeText(at: url)
+            // The slide may have been deleted while OCR was running; writing to
+            // (or saving) an invalidated model object would corrupt the context.
+            guard slide.modelContext != nil else { return }
             slide.ocrText = text
             try? context.save()
-            pendingIDs.remove(slideID)
         }
     }
 
