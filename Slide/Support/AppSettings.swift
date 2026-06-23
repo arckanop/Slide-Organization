@@ -49,6 +49,9 @@ enum VisibleWeekdaysCoding {
 
 /// Reads the same `UserDefaults` keys `@AppStorage` writes to, for use from
 /// non-View code (capture/import pipelines) that can't hold a property wrapper.
+/// Every accessor falls back to the matching `AppSettingsDefault` member through
+/// `value(forKey:default:)` below, the same default each `@AppStorage` declaration
+/// is seeded with — so there's one place a default can live, not two.
 enum AppStorageSnapshot {
     static var imageFormat: ImageFormat {
         guard let raw = UserDefaults.standard.string(forKey: AppSettingsKey.imageFormat),
@@ -58,18 +61,29 @@ enum AppStorageSnapshot {
     }
 
     static var jpegQuality: Double {
-        UserDefaults.standard.object(forKey: AppSettingsKey.jpegQuality) == nil
-            ? AppSettingsDefault.jpegQuality
-            : UserDefaults.standard.double(forKey: AppSettingsKey.jpegQuality)
+        value(forKey: AppSettingsKey.jpegQuality, default: AppSettingsDefault.jpegQuality) {
+            UserDefaults.standard.double(forKey: $0)
+        }
     }
 
     static var maxLongEdge: Int {
-        UserDefaults.standard.integer(forKey: AppSettingsKey.maxLongEdge)
+        value(forKey: AppSettingsKey.maxLongEdge, default: AppSettingsDefault.maxLongEdge) {
+            UserDefaults.standard.integer(forKey: $0)
+        }
     }
 
     static var promptDeleteAfterImport: Bool {
-        UserDefaults.standard.object(forKey: AppSettingsKey.promptDeleteAfterImport) == nil
-            ? AppSettingsDefault.promptDeleteAfterImport
-            : UserDefaults.standard.bool(forKey: AppSettingsKey.promptDeleteAfterImport)
+        value(forKey: AppSettingsKey.promptDeleteAfterImport, default: AppSettingsDefault.promptDeleteAfterImport) {
+            UserDefaults.standard.bool(forKey: $0)
+        }
+    }
+
+    /// `UserDefaults`'s scalar accessors (`.double`, `.integer`, `.bool`) return
+    /// Swift's zero-value when a key is unset, which would silently mask a
+    /// non-zero default. Checking `object(forKey:)` first makes the fallback
+    /// explicit for every accessor above, instead of only the ones that
+    /// happened to need a non-zero default.
+    private static func value<T>(forKey key: String, default defaultValue: T, read: (String) -> T) -> T {
+        UserDefaults.standard.object(forKey: key) == nil ? defaultValue : read(key)
     }
 }
