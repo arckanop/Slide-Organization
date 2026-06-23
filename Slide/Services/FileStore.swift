@@ -30,22 +30,21 @@ nonisolated struct FileStore {
         ensureDirs()
         let id = UUID().uuidString
         let imageName: String
+        let decoded = ImageProcessing.decode(originalData)
 
         switch format {
         case .heicOriginal:
             imageName = "\(id).heic"
-            if maxLongEdge > 0, let cgImage = ImageProcessing.decode(originalData) {
-                let resized = ImageProcessing.resized(cgImage, maxLongEdge: CGFloat(maxLongEdge))
+            if maxLongEdge > 0, let decoded {
+                let resized = ImageProcessing.resized(decoded, maxLongEdge: CGFloat(maxLongEdge))
                 let heic = try ImageProcessing.encodeHEIC(resized)
                 try heic.write(to: slidesDir.appendingPathComponent(imageName))
             } else {
                 try originalData.write(to: slidesDir.appendingPathComponent(imageName))
             }
         case .jpegCompressed:
-            guard let cgImage = ImageProcessing.decode(originalData) else {
-                throw ImageProcessing.ProcessingError.decodeFailed
-            }
-            let resized = maxLongEdge > 0 ? ImageProcessing.resized(cgImage, maxLongEdge: CGFloat(maxLongEdge)) : cgImage
+            guard let decoded else { throw ImageProcessing.ProcessingError.decodeFailed }
+            let resized = maxLongEdge > 0 ? ImageProcessing.resized(decoded, maxLongEdge: CGFloat(maxLongEdge)) : decoded
             let jpeg = try ImageProcessing.encodeJPEG(resized, quality: jpegQuality)
             imageName = "\(id).jpg"
             try jpeg.write(to: slidesDir.appendingPathComponent(imageName))
@@ -53,8 +52,8 @@ nonisolated struct FileStore {
 
         // Thumbnail: always JPEG, ~400px long edge.
         let thumbName = "\(id)_t.jpg"
-        if let cgImage = ImageProcessing.decode(originalData) {
-            let thumb = ImageProcessing.resized(cgImage, maxLongEdge: 400)
+        if let decoded {
+            let thumb = ImageProcessing.resized(decoded, maxLongEdge: 400)
             if let thumbData = try? ImageProcessing.encodeJPEG(thumb, quality: 0.7) {
                 try thumbData.write(to: thumbsDir.appendingPathComponent(thumbName))
             }

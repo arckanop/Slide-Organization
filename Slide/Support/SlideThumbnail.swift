@@ -6,8 +6,12 @@ struct SlideThumbnail: View {
     let slide: Slide
     var contentMode: ContentMode = .fill
 
+    /// All current grid cells are well under 200pt; this comfortably covers
+    /// retina scales without falling back to a full decode.
+    private static let maxPixelSize: CGFloat = 480
+
     var body: some View {
-        AsyncDiskImage(url: url, contentMode: contentMode)
+        AsyncDiskImage(url: url, contentMode: contentMode, maxPixelSize: Self.maxPixelSize)
             .overlay(alignment: .bottomTrailing) {
                 if OCRPipeline.shared.pendingIDs.contains(slide.id) {
                     ProgressView()

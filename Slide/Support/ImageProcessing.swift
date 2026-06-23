@@ -18,6 +18,27 @@ nonisolated enum ImageProcessing {
         return CGImageSourceCreateImageAtIndex(source, 0, nil)
     }
 
+    /// Decodes directly from a file URL so ImageIO can stream from disk
+    /// instead of requiring the whole file to be read into a `Data` first.
+    static func decode(contentsOf url: URL) -> CGImage? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        return CGImageSourceCreateImageAtIndex(source, 0, nil)
+    }
+
+    /// Downsampled decode for display sizes smaller than the source image —
+    /// ImageIO decodes directly at the target resolution instead of
+    /// materializing the full bitmap and resizing it afterward.
+    static func thumbnail(contentsOf url: URL, maxPixelSize: CGFloat) -> CGImage? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+    }
+
     /// Returns a new CGImage scaled so its longer edge is `maxLongEdge` pixels.
     /// Returns the original image unchanged if it's already smaller.
     static func resized(_ image: CGImage, maxLongEdge: CGFloat) -> CGImage {
