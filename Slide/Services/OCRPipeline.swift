@@ -12,6 +12,7 @@ final class OCRPipeline {
     private init() {}
 
     private(set) var pendingIDs: Set<UUID> = []
+    private var saveTask: Task<Void, Never>?
 
     func process(slide: Slide, context: ModelContext) {
         pendingIDs.insert(slide.id)
@@ -24,6 +25,18 @@ final class OCRPipeline {
             // (or saving) an invalidated model object would corrupt the context.
             guard slide.modelContext != nil else { return }
             slide.ocrText = text
+            scheduleSave(context: context)
+        }
+    }
+
+    /// A capture batch finishes OCR on several slides in close succession;
+    /// without coalescing, each one would trigger its own SwiftData save.
+    /// Debounce so a burst of completions collapses into a single save.
+    private func scheduleSave(context: ModelContext) {
+        saveTask?.cancel()
+        saveTask = Task {
+            try? await Task.sleep(for: .milliseconds(200))
+            guard !Task.isCancelled else { return }
             try? context.save()
         }
     }
