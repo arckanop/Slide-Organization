@@ -15,6 +15,8 @@ struct ImageImporter: View {
     @State private var batchDate = Date()
     @State private var isImporting = false
     @State private var importedCount = 0
+    @State private var saveFailureMessage: String?
+    @State private var showingSaveFailureAlert = false
 
     #if os(iOS)
     @State private var showingDeletePrompt = false
@@ -77,6 +79,11 @@ struct ImageImporter: View {
                 Text("Remove the \(importedAssetIDs.count) imported photo(s) from your photo library? Your in-app copies are kept either way.")
             }
             #endif
+            .alert("Some Photos Couldn't Be Saved", isPresented: $showingSaveFailureAlert) {
+                Button("OK") { proceedAfterImport() }
+            } message: {
+                Text(saveFailureMessage ?? "")
+            }
         }
     }
 
@@ -96,7 +103,7 @@ struct ImageImporter: View {
         }
 
         let title = sessionTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        CaptureFlow.commit(
+        let result = CaptureFlow.commit(
             pages: pages,
             to: target,
             sessionTitle: title.isEmpty ? nil : title,
@@ -105,10 +112,21 @@ struct ImageImporter: View {
         )
 
         isImporting = false
-
         #if os(iOS)
         importedAssetIDs = assetIDs
-        if AppStorageSnapshot.promptDeleteAfterImport, !assetIDs.isEmpty {
+        #endif
+
+        if result.failedCount > 0 {
+            saveFailureMessage = "Saved \(result.savedCount) of \(pages.count) photo(s). \(result.failedCount) failed to import."
+            showingSaveFailureAlert = true
+        } else {
+            proceedAfterImport()
+        }
+    }
+
+    private func proceedAfterImport() {
+        #if os(iOS)
+        if AppStorageSnapshot.promptDeleteAfterImport, !importedAssetIDs.isEmpty {
             showingDeletePrompt = true
         } else {
             dismiss()

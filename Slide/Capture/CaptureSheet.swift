@@ -11,6 +11,8 @@ struct CaptureSheet: View {
 
     @State private var target: ClassSubject?
     @State private var activeMode: CaptureMode?
+    @State private var captureFailureMessage: String?
+    @State private var showingCaptureFailureAlert = false
 
     private enum CaptureMode: Identifiable {
         case scan, camera
@@ -52,6 +54,11 @@ struct CaptureSheet: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+            .alert("Some Slides Couldn't Be Saved", isPresented: $showingCaptureFailureAlert) {
+                Button("OK") { dismiss() }
+            } message: {
+                Text(captureFailureMessage ?? "")
+            }
         }
         .fullScreenCover(item: $activeMode) { mode in
             switch mode {
@@ -91,8 +98,13 @@ struct CaptureSheet: View {
     private func finish(_ pages: [Data]) {
         activeMode = nil
         guard let target, !pages.isEmpty else { return }
-        CaptureFlow.commit(pages: pages, to: target, context: context)
-        dismiss()
+        let result = CaptureFlow.commit(pages: pages, to: target, context: context)
+        if result.failedCount > 0 {
+            captureFailureMessage = "Saved \(result.savedCount) of \(pages.count) slide(s). \(result.failedCount) failed to save."
+            showingCaptureFailureAlert = true
+        } else {
+            dismiss()
+        }
     }
 }
 
