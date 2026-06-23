@@ -9,9 +9,16 @@ struct SlideViewerView: View {
 
     @State private var slides: [Slide]
     @State private var selection: UUID
+    @State private var zoomedSlideID: UUID?
     @State private var showingDeleteConfirm = false
     @State private var showingEditor = false
     @State private var showingOCRText = false
+
+    /// Full-screen pager pages downsample to this size by default; only the
+    /// page the user has actually pinch-zoomed decodes at full resolution.
+    /// Comfortably covers any current device at retina scale while staying
+    /// far below a multi-thousand-pixel camera-original HEIC.
+    private static let unzoomedMaxPixelSize: CGFloat = 2048
 
     init(slides: [Slide], initial: Slide) {
         _slides = State(initialValue: slides)
@@ -22,12 +29,26 @@ struct SlideViewerView: View {
         slides.first { $0.id == selection }
     }
 
+    private func maxPixelSize(for slideID: UUID) -> CGFloat? {
+        zoomedSlideID == slideID ? nil : Self.unzoomedMaxPixelSize
+    }
+
+    private func isZoomedBinding(for slideID: UUID) -> Binding<Bool> {
+        Binding(
+            get: { zoomedSlideID == slideID },
+            set: { zoomedSlideID = $0 ? slideID : nil }
+        )
+    }
+
     var body: some View {
         TabView(selection: $selection) {
             ForEach(slides) { slide in
-                AsyncDiskImage(url: FileStore.shared.imageURL(slide.imageFileName))
-                    .modifier(ZoomableModifier())
-                    .tag(slide.id)
+                AsyncDiskImage(
+                    url: FileStore.shared.imageURL(slide.imageFileName),
+                    maxPixelSize: maxPixelSize(for: slide.id)
+                )
+                .modifier(ZoomableModifier(isZoomed: isZoomedBinding(for: slide.id)))
+                .tag(slide.id)
             }
         }
         #if os(iOS)
@@ -197,6 +218,7 @@ private struct OCRTextSheet: View {
 /// Pinch-to-zoom + pan, double-tap to reset. Plain gesture state, no
 /// platform-specific APIs, so it works the same on iOS/macOS/visionOS.
 private struct ZoomableModifier: ViewModifier {
+    @Binding var isZoomed: Bool
     @State private var scale: CGFloat = 1
     @State private var lastScale: CGFloat = 1
     @State private var offset: CGSize = .zero
@@ -217,8 +239,12 @@ private struct ZoomableModifier: ViewModifier {
         MagnifyGesture()
             .onChanged { value in
                 scale = max(1, min(lastScale * value.magnification, 4))
+                isZoomed = scale > 1
             }
-            .onEnded { _ in lastScale = scale }
+            .onEnded { _ in
+                lastScale = scale
+                isZoomed = scale > 1
+            }
     }
 
     private var drag: some Gesture {
@@ -238,5 +264,6 @@ private struct ZoomableModifier: ViewModifier {
 
     private func reset() {
         scale = 1; lastScale = 1; offset = .zero; lastOffset = .zero
+        isZoomed = false
     }
 }
