@@ -10,6 +10,7 @@ struct ClassDetailView: View {
     @State private var isExportingPDF = false
     @State private var pdfExportURL: URL?
     @State private var showingPDFShare = false
+    @State private var pdfExportFailed = false
 
     private var groupedSlides: [(date: Date, slides: [Slide])] {
         let calendar = Calendar.current
@@ -106,6 +107,11 @@ struct ClassDetailView: View {
                 PDFShareSheet(url: pdfExportURL, slideCount: classSubject.slides.count)
             }
         }
+        .alert("Couldn't Create PDF", isPresented: $pdfExportFailed) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("None of the slides for \(classSubject.name) could be exported. Please try again.")
+        }
         .platformCover(item: $viewerInitial) { initial in
             SlideViewerView(
                 slides: classSubject.slides.sorted { $0.captureDate > $1.captureDate },
@@ -122,7 +128,11 @@ struct ClassDetailView: View {
             PDFExporter.export(pages: pages, title: name)
         }.value
         isExportingPDF = false
-        showingPDFShare = pdfExportURL != nil
+        if pdfExportURL != nil {
+            showingPDFShare = true
+        } else {
+            pdfExportFailed = true
+        }
     }
 }
 
