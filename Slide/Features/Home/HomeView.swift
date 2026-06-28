@@ -82,25 +82,7 @@ struct HomeView: View {
 
     @ViewBuilder
     private var header: some View {
-        if let resolution {
-            HStack(spacing: 12) {
-                Circle().fill(Color(hex: resolution.subject.colorHex)).frame(width: 14, height: 14)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(resolution.subject.name).font(.title3.weight(.semibold))
-                    Text("\(resolution.period.label) · \(timeRange(resolution.period))")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                if manualTarget != nil {
-                    Button("Reset") { manualTarget = nil }
-                        .font(.caption)
-                }
-            }
-            .padding()
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-            .onTapGesture { showingClassPicker = true }
-        } else if let manualTarget {
+        if let manualTarget {
             HStack(spacing: 12) {
                 Circle().fill(Color(hex: manualTarget.colorHex)).frame(width: 14, height: 14)
                 VStack(alignment: .leading, spacing: 2) {
@@ -113,6 +95,20 @@ struct HomeView: View {
             }
             .padding()
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        } else if let resolution {
+            HStack(spacing: 12) {
+                Circle().fill(Color(hex: resolution.subject.colorHex)).frame(width: 14, height: 14)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(resolution.subject.name).font(.title3.weight(.semibold))
+                    Text("\(resolution.period.label) · \(timeRange(resolution.period))")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding()
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .onTapGesture { showingClassPicker = true }
         } else {
             HStack {
                 Image(systemName: "moon.zzz")
