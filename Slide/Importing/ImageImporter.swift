@@ -93,11 +93,14 @@ struct ImageImporter: View {
         importedCount = 0
         var pages: [Data] = []
         var assetIDs: [String] = []
+        var loadFailedCount = 0
 
         for item in selectedItems {
             if let data = try? await item.loadTransferable(type: Data.self) {
                 pages.append(data)
                 if let id = item.itemIdentifier { assetIDs.append(id) }
+            } else {
+                loadFailedCount += 1
             }
             importedCount += 1
         }
@@ -116,8 +119,9 @@ struct ImageImporter: View {
         importedAssetIDs = assetIDs
         #endif
 
-        if result.failedCount > 0 {
-            saveFailureMessage = "Saved \(result.savedCount) of \(pages.count) photo(s). \(result.failedCount) failed to import."
+        let totalFailed = result.failedCount + loadFailedCount
+        if totalFailed > 0 {
+            saveFailureMessage = "Imported \(result.savedCount) of \(selectedItems.count) photo(s). \(totalFailed) failed to import."
             showingSaveFailureAlert = true
         } else {
             proceedAfterImport()
